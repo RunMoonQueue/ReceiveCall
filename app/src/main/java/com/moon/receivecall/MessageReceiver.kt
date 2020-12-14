@@ -20,14 +20,13 @@ class MessageReceiver : BroadcastReceiver() {
 
             val contents = messages[0]?.messageBody.toString()
             Log.d(TAG, "contents:$contents")
-            Log.d(TAG, "context:$context")
             context?.startActivity(Intent(context, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                Log.d(TAG, "startActivity MainActivity")
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra("sender", sender)
                 putExtra("contents", contents)
             })
         }
-
     }
 
     private fun parseMessage(bundle: Bundle): Array<SmsMessage?>? {
