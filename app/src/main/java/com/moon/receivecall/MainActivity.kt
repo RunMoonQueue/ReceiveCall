@@ -6,10 +6,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsManager
 import android.util.Log
+import android.widget.Button
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -23,12 +25,15 @@ class MainActivity : AppCompatActivity() {
     var locationManager: LocationManager? = null
     var latitude: Double? = null
     var longitude: Double? = null
-
+    val MEDIA_RESOURCE_ID: Int = R.raw.what
+    private lateinit var button: Button
+    private lateinit var mediaPlayer: MediaPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         requestPermission()
+        initView()
         processIntent(intent)
     }
 
@@ -37,19 +42,75 @@ class MainActivity : AppCompatActivity() {
         processIntent(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        try {
+            mediaPlayer.setDataSource(resources.openRawResourceFd(MEDIA_RESOURCE_ID))
+            mediaPlayer.prepare()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        mediaPlayer.release()
+    }
+
+    private fun initView() {
+        mediaPlayer = MediaPlayer()
+        button = findViewById<Button>(R.id.button_play_pause).apply {
+            setOnClickListener {
+                background = if (mediaPlayer.isPlaying) {
+                    pause()
+                    resources.getDrawable(R.drawable.ic_play, null)
+                } else {
+                    play()
+                    resources.getDrawable(R.drawable.ic_pause, null)
+                }
+            }
+        }
+    }
+
+
+    // Handle user input for button presses.
+    fun pause() {
+        Log.i("MQ!", "pause")
+        if (mediaPlayer.isPlaying) {
+            mediaPlayer.pause()
+        }
+    }
+
+    fun play() {
+        Log.i("MQ!", "play")
+        if (!mediaPlayer.isPlaying) {
+            mediaPlayer.start()
+        }
+    }
+
+
     private fun processIntent(intent: Intent?) {
         intent?.run {
             val sender = getStringExtra("sender")
             val content = getStringExtra("contents")
             getCurrentLocation()
             Log.i(
-                "MQ!",
+                TAG,
                 "sender: $sender, content:$content, latitude:$latitude, longitude:$longitude "
             )
             if (sender != null && content != null && latitude != null && longitude != null &&
                 content.contains("@#")
             ) {
-                Log.i("MQ!", "sendTextMessage")
+                Log.i("MQ!", "sendTextMessage and play: " + mediaPlayer.isPlaying)
+                button.run {
+                    background = if (mediaPlayer.isPlaying) {
+                        pause()
+                        resources.getDrawable(R.drawable.ic_play, null)
+                    } else {
+                        play()
+                        resources.getDrawable(R.drawable.ic_pause, null)
+                    }
+                }
                 val url = "https://maps.google.com/?q=$latitude,$longitude"
                 try {
                     SmsManager.getDefault().run {
@@ -90,7 +151,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.M)
     private fun getCurrentLocation() {
         getLatLng()?.run {
-            Log.i("MQ!", "latitude:$latitude, longitude:$longitude")
+            Log.i(TAG, "latitude:$latitude, longitude:$longitude")
             this@MainActivity.latitude = latitude
             this@MainActivity.longitude = longitude
         }
@@ -99,7 +160,7 @@ class MainActivity : AppCompatActivity() {
     @RequiresApi(Build.VERSION_CODES.M)
     private fun getLatLng(): Location? {
         locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager?
-        Log.i("MQ!", "getLatLng locationManager:$locationManager")
+        Log.i(TAG, "getLatLng locationManager:$locationManager")
 
         if (ActivityCompat.checkSelfPermission(
                 this,
@@ -109,7 +170,7 @@ class MainActivity : AppCompatActivity() {
                 Manifest.permission.ACCESS_COARSE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            Log.i("MQ!", "getLatLng permission denied")
+            Log.i(TAG, "getLatLng permission denied")
             return null
         }
         return locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
@@ -118,6 +179,7 @@ class MainActivity : AppCompatActivity() {
 
 
     companion object {
+        const val TAG = "MainActivity"
         const val REQUEST_CODE = 1000
         const val REQUEST_CODE_LOCATION = 2000
     }
